@@ -71,6 +71,8 @@ int transcript_finalize_rc(cudaError_t err) {
   return err == cudaSuccess ? 0 : -35000 - static_cast<int>(err);
 }
 
+int g_salted_seed = 0;
+
 }  // namespace
 
 // --- public C ABI ----------------------------------------------------------
@@ -85,6 +87,14 @@ int transcript_finalize_rc(cudaError_t err) {
 #  define PEARL_CAPI_EXPORT __attribute__((visibility("default")))
 #endif
 extern "C" {
+
+PEARL_CAPI_EXPORT void pearl_capi_set_salted_seed(int on) {
+  g_salted_seed = on ? 1 : 0;
+}
+
+PEARL_CAPI_EXPORT int pearl_capi_get_salted_seed(void) {
+  return g_salted_seed;
+}
 
 PEARL_CAPI_EXPORT int pearl_capi_abi_version(void) { return 2; }
 
@@ -272,8 +282,10 @@ PEARL_CAPI_EXPORT int pearl_capi_commitment_hash_from_merkle_roots(
   cudaDeviceProp* dprops = get_dprops_locked(device_id);
   if (!dprops) return -1;
   try {
+    bool apply_salt = (g_salted_seed != 0);
     commitment_hash_from_merkle_roots(A_merkle_root, B_merkle_root, key,
                                       A_commitment_hash, B_commitment_hash,
+                                      apply_salt, 131072, 131072,
                                       *dprops, stream);
   } catch (const std::exception&) {
     return -2;

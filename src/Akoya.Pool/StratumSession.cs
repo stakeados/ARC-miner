@@ -39,6 +39,7 @@ public sealed class StratumSession : IPoolSession
     private byte[] _extranonce1 = [];
     private readonly List<string> _jobHistory = new();
     private readonly Dictionary<string, string> _sigmaToJobId = new();
+    private readonly Queue<string> _sigmaJobOrder = new();
     private int _requestId = 1;
 
     // Lines received before the read loop starts (the pearl/v1 handshake can
@@ -614,13 +615,21 @@ public sealed class StratumSession : IPoolSession
 
         var sigmaHex = Convert.ToHexString(share.Sigma.Span).ToLowerInvariant();
         string jobId;
+        bool jobIdMissed;
         lock (_sigmaToJobId)
         {
-            if (!_sigmaToJobId.TryGetValue(sigmaHex, out var foundJobId))
+            jobIdMissed = !_sigmaToJobId.TryGetValue(sigmaHex, out var foundJobId);
+            if (jobIdMissed)
             {
                 foundJobId = Convert.ToHexString(share.Sigma.Span.Slice(0, 16)).ToLowerInvariant();
             }
-            jobId = foundJobId;
+            jobId = foundJobId!;
+        }
+        if (jobIdMissed)
+        {
+            _log.LogWarning(
+                "stratum: no job id recorded for share σ={SigmaPrefix} (total_cached={N}) — submitting with fallback {JobIdPrefix}; pool will likely reject",
+                sigmaHex[..Math.Min(16, sigmaHex.Length)], _sigmaToJobId.Count, jobId[..Math.Min(8, jobId.Length)]);
         }
 
         // Serialize ShareSubmission to Bincode byte array and base64 encode it as the plain_proof
@@ -830,14 +839,12 @@ public sealed class StratumSession : IPoolSession
         string headerHex = p.Header.ToLowerInvariant();
         lock (_sigmaToJobId)
         {
+            if (!_sigmaToJobId.ContainsKey(headerHex))
+                _sigmaJobOrder.Enqueue(headerHex);
             _sigmaToJobId[headerHex] = p.JobId;
-            if (_sigmaToJobId.Count > 100)
+            while (_sigmaToJobId.Count > 100 && _sigmaJobOrder.TryDequeue(out var oldest))
             {
-                foreach (var key in _sigmaToJobId.Keys)
-                {
-                    _sigmaToJobId.Remove(key);
-                    break;
-                }
+                _sigmaToJobId.Remove(oldest);
             }
         }
 

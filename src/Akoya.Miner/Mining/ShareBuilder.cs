@@ -166,7 +166,7 @@ internal static class ShareBuilder
         var hashB = bProof.Root;
 
         stageStart = TimingStart(collectTimings);
-        var (bNoiseSeed, aNoiseSeed) = CommitmentHasher.DeriveNoiseSeeds(jobKey, hashA, hashB);
+        var (bNoiseSeed, aNoiseSeed) = CommitmentHasher.DeriveNoiseSeeds(jobKey, hashA, hashB, m, n, true);
 
         var secretA = ParseRows(aSlice, h, k);
         var secretB = ParseRows(bSlice, w, k);
@@ -273,7 +273,7 @@ internal static class ShareBuilder
         var hashB = bProof.Root;
 
         stageStart = TimingStart(collectTimings);
-        var (bNoiseSeed, aNoiseSeed) = CommitmentHasher.DeriveNoiseSeeds(jobKey, hashA, hashB);
+        var (bNoiseSeed, aNoiseSeed) = CommitmentHasher.DeriveNoiseSeeds(jobKey, hashA, hashB, m, n, true);
 
         var secretA = ParseRows(aSlice, h, k);
         var secretB = ParseRows(bSlice, w, k);

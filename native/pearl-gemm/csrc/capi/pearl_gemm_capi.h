@@ -294,7 +294,14 @@ struct PearlCapiWorkspaceParams {
     void* host_signal_sync;   // device int8 — dSync coordination block
     void* pow_target;         // device uint32[8]
     void* pow_key;            // device uint32[8]
+
+    // ABI v3. Noise-seed derivation for THIS σ: 0 = legacy (raw Merkle roots),
+    // non-zero = salted/V3 (roots bound to m/n first).
+    int32_t salted_seeds;
 };
+
+void pearl_capi_set_salted_seed(int on);
+int pearl_capi_get_salted_seed(void);
 
 // Install constant params into the workspace.  Must be called before the
 // first pearl_capi_iter() call.  Safe to call again on σ-rotation (the

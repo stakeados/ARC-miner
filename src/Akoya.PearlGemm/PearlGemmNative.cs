@@ -35,6 +35,12 @@ public static partial class PearlGemmNative
     [LibraryImport(Lib, EntryPoint = "pearl_capi_supports_sm")]
     public static partial int SupportsSm(int major, int minor);
 
+    [LibraryImport(Lib, EntryPoint = "pearl_capi_set_salted_seed")]
+    public static partial void SetSaltedSeed(int on);
+
+    [LibraryImport(Lib, EntryPoint = "pearl_capi_get_salted_seed")]
+    public static partial int GetSaltedSeed();
+
     [LibraryImport(Lib, EntryPoint = "pearl_capi_get_host_signal_sync_size")]
     public static partial int GetHostSignalSyncSize();
 
@@ -256,7 +262,7 @@ public static partial class PearlGemmNative
         public nint HostSignalSync;   // device — dSync coordination block
         public nint PowTarget;        // device uint32[8]
         public nint PowKey;           // device uint32[8]
-        public int SyclKSub;          // ABI v3: SYCL systolic depth (16 or 32)
+        public int SaltedSeeds;       // ABI v3: 0 = legacy raw roots, 1 = salted/bound roots
     }
 
     // Install constant per-σ params into the workspace.  Must be called before

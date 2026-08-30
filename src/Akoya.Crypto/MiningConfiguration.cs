@@ -180,13 +180,22 @@ public sealed record MiningConfiguration(
         return (CommonDim / quantum) * quantum;
     }
 
+    public const int PenaltyBaseRank = 128;
+
     /// <summary>
-    /// Difficulty adjustment factor:
-    ///   hash_tile_h * hash_tile_w * dot_product_length
-    /// where hash_tile_h = rows.size, hash_tile_w = cols.size.
+    /// Difficulty adjustment factor with rank penalty applied (pearl consensus PR #275).
+    ///   tile_size * (dot_product_length / rank) * PenaltyBaseRank
+    /// where tile_size = rows.size * cols.size.
+    /// When rank == PenaltyBaseRank (128), this equals the unpenalized factor.
+    /// For rank > 128 (e.g. 256), it scales the factor inversely to rank.
     /// </summary>
     public ulong DifficultyAdjustmentFactor()
-        => (ulong)RowsPattern.Size * ColsPattern.Size * DotProductLength();
+    {
+        ulong tileSize = (ulong)RowsPattern.Size * ColsPattern.Size;
+        uint dotProductLen = DotProductLength();
+        uint r = Math.Max((uint)Rank, (uint)PenaltyBaseRank);
+        return tileSize * (dotProductLen / r) * (ulong)PenaltyBaseRank;
+    }
 
     public byte[] ToBytes()
     {
@@ -302,28 +311,64 @@ public static class CommitmentHasher
         return (Blake3.KeyedHash(jobKey, aSlice), Blake3.KeyedHash(jobKey, bSlice));
     }
 
+    private static ReadOnlySpan<byte> SeedSaltA => new byte[]
+    {
+        0x82,0x49,0x40,0x6C, 0xA0,0xED,0x15,0x16, 0x96,0x16,0xF6,0x92, 0xFC,0xF0,0x76,0xF8,
+        0x92,0xDB,0xDB,0x2A, 0x70,0x23,0xB8,0x52, 0xF0,0xD4,0x77,0x19, 0xC3,0x90,0x01,0x7B,
+    };
+
+    private static ReadOnlySpan<byte> SeedSaltB => new byte[]
+    {
+        0x11,0x30,0x06,0x32, 0xEC,0x63,0x01,0xCA, 0x2B,0xE2,0xAF,0x71, 0x8B,0x3F,0x4D,0x4F,
+        0x1A,0xE9,0xC6,0x39, 0x88,0xE8,0xCC,0x04, 0x48,0x44,0x30,0x1D, 0x71,0xB8,0x9A,0xA9,
+    };
+
+    private static byte[] BindRoot(ReadOnlySpan<byte> merkleRoot, int dim, ReadOnlySpan<byte> salt)
+    {
+        Span<byte> block = stackalloc byte[64];
+        block.Clear();
+        merkleRoot.CopyTo(block);
+        System.Buffers.Binary.BinaryPrimitives.WriteUInt32LittleEndian(block[32..36], (uint)dim);
+        var bound = new byte[32];
+        Blake3.KeyedHash(salt, block, bound);
+        return bound;
+    }
+
     /// <summary>
     /// Derive chained noise seeds from jobKey and commitment hashes.
-    /// bNoiseSeed = BLAKE3(jobKey ‖ hashB)
-    /// aNoiseSeed = BLAKE3(bNoiseSeed ‖ hashA)
+    /// V2 (pre-fork):
+    ///   bNoiseSeed = BLAKE3(jobKey ‖ hashB)
+    ///   aNoiseSeed = BLAKE3(bNoiseSeed ‖ hashA)
+    /// V3 (salted):
+    ///   boundA = BLAKE3_keyed(SALT_A, hashA || m || 0^28)
+    ///   boundB = BLAKE3_keyed(SALT_B, hashB || n || 0^28)
+    ///   bNoiseSeed = BLAKE3(jobKey ‖ boundB)
+    ///   aNoiseSeed = BLAKE3(bNoiseSeed ‖ boundA)
     /// </summary>
     public static (byte[] BNoiseSeed, byte[] ANoiseSeed) DeriveNoiseSeeds(
         ReadOnlySpan<byte> jobKey,
         ReadOnlySpan<byte> hashA,
-        ReadOnlySpan<byte> hashB)
+        ReadOnlySpan<byte> hashB,
+        int m = 131072,
+        int n = 131072,
+        bool salted = true)
     {
+        ReadOnlySpan<byte> effectiveA = salted ? BindRoot(hashA, m, SeedSaltA) : hashA;
+        ReadOnlySpan<byte> effectiveB = salted ? BindRoot(hashB, n, SeedSaltB) : hashB;
+
         Span<byte> bInput = stackalloc byte[64];
         jobKey.CopyTo(bInput);
-        hashB.CopyTo(bInput[32..]);
+        effectiveB.CopyTo(bInput[32..]);
         var bNoiseSeed = new byte[32];
         Blake3.Hash(bInput, bNoiseSeed);
 
         Span<byte> aInput = stackalloc byte[64];
         bNoiseSeed.CopyTo(aInput);
-        hashA.CopyTo(aInput[32..]);
+        effectiveA.CopyTo(aInput[32..]);
         var aNoiseSeed = new byte[32];
         Blake3.Hash(aInput, aNoiseSeed);
 
         return (bNoiseSeed, aNoiseSeed);
     }
 }
+

@@ -1085,6 +1085,7 @@ internal sealed partial class GpuWorker : IAsyncDisposable, ILivenessTarget
         var bs = s.BState;
         long bA = (long)a.M * a.K;
 
+        PearlGemm.PearlGemmNative.SetSaltedSeed(1);
         H2D(bs.Key, ctx.JobKey);
         Check("lcg_int7 A throwaway", PearlGemm.PearlGemmNative.LcgInt7Fill(
             a.A.Handle, bA, THROWAWAY_A_SEED_LO, s.SigmaSeed, scratchHalf.Stream.Handle));
@@ -1140,7 +1141,6 @@ internal sealed partial class GpuWorker : IAsyncDisposable, ILivenessTarget
                 ThStages    = TENSOR_HASH_STAGES,
                 ThLeaves    = TENSOR_HASH_LEAVES,
                 SigmaSeed   = s.SigmaSeed,
-                SyclKSub    = s.SyclKSub,
 
                 // ── A-side: always this half's own buffers ───────────────────
                 // These are written per-iter by pearl_capi_iter and must not be
@@ -1175,6 +1175,7 @@ internal sealed partial class GpuWorker : IAsyncDisposable, ILivenessTarget
                 EARxBpEB_fp16 = bs.EARxBpEB.Handle,
                 BpEB        = bs.BpEB.Handle,
                 B_scales    = bs.BScales.Handle,
+                SaltedSeeds = 1,
             };
             Check("workspace_install_params",
                 PearlGemm.PearlGemmNative.WorkspaceInstallParams(half.Workspace, &wp));
@@ -2527,7 +2528,7 @@ internal sealed partial class GpuWorker : IAsyncDisposable, ILivenessTarget
                 ThStages = TENSOR_HASH_STAGES,
                 ThLeaves = TENSOR_HASH_LEAVES,
                 SigmaSeed = sigmaSeed,
-                SyclKSub = syclKSub,
+                SaltedSeeds = 1,
 
                 A = b.A.Handle,
                 AHash = b.AHash.Handle,

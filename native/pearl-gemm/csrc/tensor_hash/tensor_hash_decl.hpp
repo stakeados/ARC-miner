@@ -56,4 +56,5 @@ void bseed_expand_and_tensor_hash_with_leaf_cvs(
 void commitment_hash_from_merkle_roots(
     const uint8_t* A_merkle_root, const uint8_t* B_merkle_root,
     const uint8_t* key, uint8_t* A_commitment_hash, uint8_t* B_commitment_hash,
+    bool apply_salt, uint32_t salted_dim_a, uint32_t salted_dim_b,
     cudaDeviceProp& deviceProp, cudaStream_t stream);
