@@ -60,7 +60,7 @@ The build auto-detects your card and selects the matching kernel — override wi
 |---|---|---|
 | **Intel Arc (Battlemage)** | B580, B570, B770 | `sycl` · `bmg-g21` |
 | **Intel Arc (Battlemage, big)** | Arc Pro B70 | `sycl` · `bmg-g31` |
-| **Intel Arc (Alchemist)** | A770, A750, A580, A380 | `sycl` · `acm-g10` / `acm-g11` |
+| **NVIDIA Grace-Blackwell (DGX Spark)** | GB10 (sm_121a) | `cuda` · `blackwell` (`PEARL_GEMM_LOCAL_ARCH=sm_121a`) |
 | **NVIDIA Blackwell** | RTX 50-series (5090 / 5080 …) | `cuda` · `blackwell` |
 | **NVIDIA Blackwell (DC)** | B200 | `cuda` · `b200` |
 | **NVIDIA Hopper** | H100, H200 | `cuda` · `h100` |
@@ -68,6 +68,8 @@ The build auto-detects your card and selects the matching kernel — override wi
 | **NVIDIA Ampere** | RTX 30-series, A100, A40, A6000 | `cuda` · `ampere` |
 | **NVIDIA Turing / Volta** | RTX 20-series, T4 / V100 | `cuda` · `turing` / `volta` |
 | **AMD CDNA3** | MI300X | `rocm` |
+
+> **Hardfork Support:** Fully compatible with Pearl v1.3.0 (rank-penalty difficulty) and v1.4.0 / V3 (salted noise seeds derivation for block >= 99,000).
 
 Other NVIDIA cards (sm_70+) build with the `portable` fallback.
 
