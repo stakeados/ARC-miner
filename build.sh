@@ -242,8 +242,9 @@ On this machine 'nvcc' is $(command -v nvcc >/dev/null 2>&1 && echo "CUDA $(nvcc
 fi
 
 # ── 2. pearl-mining-capi — BLAKE3 keyed-merkle C ABI (Rust) ──────────────────
-run_step "Building libpearl_mining_capi.so (Rust)" \
+run_step "Building libpearl_mining_capi.so (Rust, native SIMD)" \
   'echo "$(grep -c "Compiling " "$log" 2>/dev/null || true) crates compiled"' \
+  env RUSTFLAGS="-C target-cpu=native -C opt-level=3 -C codegen-units=1" \
   cargo build --release --manifest-path "$ROOT/native/Cargo.toml"
 STAGE+=( "$ROOT/native/target/release/libpearl_mining_capi.so" )
 
